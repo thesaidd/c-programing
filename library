@@ -1,0 +1,476 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_CUSTOMERS 100
+#define MAX_BOOKS 100
+#define MAX_RENTALS 100
+
+typedef struct {
+    int C_ID;
+    char name[50];
+    char surname[50];
+    int age;
+    int wallet;
+} Customer;
+
+typedef struct {
+    int B_ID;
+    char name[50];
+    char author[50];
+    int ageLimit;
+    int pricePerWeek;
+    int rented;
+} Book;
+
+typedef struct {
+    int R_ID;
+    int C_ID;
+    int B_ID;
+    char rentedDate[11];
+    int week;
+} Rental;
+
+Customer customers[MAX_CUSTOMERS];
+Book books[MAX_BOOKS];
+Rental rentals[MAX_RENTALS];
+
+int customerCount = 0;
+int bookCount = 0;
+int rentalCount = 0;
+
+void saveCustomers() {
+    FILE *file = fopen("customers.txt", "w");
+    if (file == NULL) {
+        perror("Error opening customers.txt");
+        return;
+    }
+    for (int i = 0; i < customerCount; i++) {
+        fprintf(file, "%d,%s,%s,%d,%d\n", customers[i].C_ID, customers[i].name, customers[i].surname, customers[i].age, customers[i].wallet);
+    }
+    fclose(file);
+}
+
+void saveBooks() {
+    FILE *file = fopen("books.txt", "w");
+    if (file == NULL) {
+        perror("Error opening books.txt");
+        return;
+    }
+    for (int i = 0; i < bookCount; i++) {
+        fprintf(file, "%d,%s,%s,%d,%d,%d\n", books[i].B_ID, books[i].name, books[i].author, books[i].ageLimit, books[i].pricePerWeek, books[i].rented);
+    }
+    fclose(file);
+}
+
+void saveRentals() {
+    FILE *file = fopen("rentals.txt", "w");
+    if (file == NULL) {
+        perror("Error opening rentals.txt");
+        return;
+    }
+    for (int i = 0; i < rentalCount; i++) {
+        fprintf(file, "%d,%d,%d,%s,%d\n", rentals[i].R_ID, rentals[i].C_ID, rentals[i].B_ID, rentals[i].rentedDate, rentals[i].week);
+    }
+    fclose(file);
+}
+
+void createCustomer() {
+    int id = customerCount + 1;
+    char name[50], surname[50];
+    int age, wallet;
+
+    printf("Enter name: ");
+    scanf("%s", name);
+    printf("Enter surname: ");
+    scanf("%s", surname);
+    printf("Enter age: ");
+    scanf("%d", &age);
+
+    do {
+        printf("Enter initial wallet balance (positive value): ");
+        scanf("%d", &wallet);
+        if (wallet < 0) {
+            printf("Wallet balance cannot be negative. Please enter a valid amount.\n");
+        }
+    } while (wallet < 0);
+
+    for (int i = 0; i < customerCount; i++) {
+        if (strcmp(customers[i].name, name) == 0 && strcmp(customers[i].surname, surname) == 0) {
+            printf("Customer with the same name and surname already exists.\n");
+            return;
+        }
+    }
+
+    customers[customerCount].C_ID = id;
+    strcpy(customers[customerCount].name, name);
+    strcpy(customers[customerCount].surname, surname);
+    customers[customerCount].age = age;
+    customers[customerCount].wallet = wallet;
+    customerCount++;
+
+    saveCustomers();
+}
+
+void depositMoney() {
+    int id, amount;
+
+    printf("Enter Customer ID: ");
+    scanf("%d", &id);
+    printf("Enter amount to deposit: ");
+    scanf("%d", &amount);
+
+    if (amount <= 0) {
+        printf("Deposit amount must be positive.\n");
+        return;
+    }
+
+    for (int i = 0; i < customerCount; i++) {
+        if (customers[i].C_ID == id) {
+            customers[i].wallet += amount;
+            saveCustomers();
+            return;
+        }
+    }
+
+    printf("Customer not found.\n");
+}
+
+void addBook() {
+    int id = bookCount + 1;
+    char name[50], author[50];
+    int ageLimit, pricePerWeek;
+
+    printf("Enter book name: ");
+    scanf("%s", name);
+    printf("Enter author: ");
+    scanf("%s", author);
+    printf("Enter age limit: ");
+    scanf("%d", &ageLimit);
+    printf("Enter price per week: ");
+    scanf("%d", &pricePerWeek);
+
+    if (pricePerWeek < 0) {
+        printf("Price per week must be positive.\n");
+        return;
+    }
+
+    for (int i = 0; i < bookCount; i++) {
+        if (strcmp(books[i].name, name) == 0 && strcmp(books[i].author, author) == 0) {
+            printf("Book with the same name and author already exists.\n");
+            return;
+        }
+    }
+
+    books[bookCount].B_ID = id;
+    strcpy(books[bookCount].name, name);
+    strcpy(books[bookCount].author, author);
+    books[bookCount].ageLimit = ageLimit;
+    books[bookCount].pricePerWeek = pricePerWeek;
+    books[bookCount].rented = 0;
+    bookCount++;
+
+    saveBooks();
+}
+
+void rentBook() {
+    int customerId, bookId, weeks;
+
+    printf("Enter Customer ID: ");
+    scanf("%d", &customerId);
+    printf("Enter Book ID: ");
+    scanf("%d", &bookId);
+    printf("Enter number of weeks to rent: ");
+    scanf("%d", &weeks);
+
+    if (weeks <= 0) {
+        printf("Number of weeks must be positive.\n");
+        return;
+    }
+
+    Customer *customer = NULL;
+    Book *book = NULL;
+
+    for (int i = 0; i < customerCount; i++) {
+        if (customers[i].C_ID == customerId) {
+            customer = &customers[i];
+            break;
+        }
+    }
+
+    for (int i = 0; i < bookCount; i++) {
+        if (books[i].B_ID == bookId) {
+            book = &books[i];
+            break;
+        }
+    }
+
+    if (!customer || !book) {
+        printf("Invalid Customer ID or Book ID.\n");
+        return;
+    }
+
+    if (book->rented) {
+        printf("Book is already rented.\n");
+        return;
+    }
+
+    if (customer->wallet < book->pricePerWeek * weeks) {
+        printf("Insufficient wallet balance.\n");
+        return;
+    }
+
+    if (customer->age < book->ageLimit) {
+        printf("Customer does not meet the age limit.\n");
+        return;
+    }
+
+    book->rented = 1;
+    customer->wallet -= book->pricePerWeek * weeks;
+
+    rentals[rentalCount].R_ID = rentalCount + 1;
+    rentals[rentalCount].C_ID = customerId;
+    rentals[rentalCount].B_ID = bookId;
+    printf("Enter rented date (YYYY-MM-DD): ");
+    scanf("%s", rentals[rentalCount].rentedDate);
+    rentals[rentalCount].week = weeks;
+    rentalCount++;
+
+    saveCustomers();
+    saveBooks();
+    saveRentals();
+}
+
+void returnBook() {
+    int rentalId, remainingWeeks;
+
+    printf("Enter Rental ID: ");
+    scanf("%d", &rentalId);
+    printf("Enter remaining weeks (if returned early): ");
+    scanf("%d", &remainingWeeks);
+
+    if (remainingWeeks < 0) {
+        printf("Remaining weeks cannot be negative.\n");
+        return;
+    }
+
+    Rental *rental = NULL;
+
+    for (int i = 0; i < rentalCount; i++) {
+        if (rentals[i].R_ID == rentalId) {
+            rental = &rentals[i];
+            break;
+        }
+    }
+
+    if (!rental) {
+        printf("Rental not found.\n");
+        return;
+    }
+
+    Book *book = NULL;
+    Customer *customer = NULL;
+
+    for (int i = 0; i < bookCount; i++) {
+        if (books[i].B_ID == rental->B_ID) {
+            book = &books[i];
+            break;
+        }
+    }
+
+    for (int i = 0; i < customerCount; i++) {
+        if (customers[i].C_ID == rental->C_ID) {
+            customer = &customers[i];
+            break;
+        }
+    }
+
+    if (!book || !customer) {
+        printf("Invalid Rental data.\n");
+        return;
+    }
+
+    book->rented = 0;
+    customer->wallet += book->pricePerWeek * remainingWeeks;
+
+    // Remove rental record
+    for (int i = 0; i < rentalCount; i++) {
+        if (rentals[i].R_ID == rentalId) {
+            for (int j = i; j < rentalCount - 1; j++) {
+                rentals[j] = rentals[j + 1];
+            }
+            rentalCount--;
+            break;
+        }
+    }
+
+    saveCustomers();
+    saveBooks();
+    saveRentals();
+}
+
+void burnBook() {
+    int bookId;
+
+    printf("Enter Book ID: ");
+    scanf("%d", &bookId);
+
+    for (int i = 0; i < bookCount; i++) {
+        if (books[i].B_ID == bookId) {
+            for (int j = i; j < bookCount - 1; j++) {
+                books[j] = books[j + 1];
+            }
+            bookCount--;
+            saveBooks();
+            return;
+        }
+    }
+
+    printf("Book not found.\n");
+}
+
+void updateCustomer() {
+    int id;
+    char name[50], surname[50];
+    int age;
+
+    printf("Enter Customer ID: ");
+    scanf("%d", &id);
+    printf("Enter new name: ");
+    scanf("%s", name);
+    printf("Enter new surname: ");
+    scanf("%s", surname);
+    printf("Enter new age: ");
+    scanf("%d", &age);
+
+    for (int i = 0; i < customerCount; i++) {
+        if (customers[i].C_ID == id) {
+            strcpy(customers[i].name, name);
+            strcpy(customers[i].surname, surname);
+            customers[i].age = age;
+            saveCustomers();
+            return;
+        }
+    }
+
+    printf("Customer not found.\n");
+}
+
+void updateBook() {
+    int id;
+    char name[50], author[50];
+    int ageLimit, pricePerWeek;
+
+    printf("Enter Book ID: ");
+    scanf("%d", &id);
+    printf("Enter new name: ");
+    scanf("%s", name);
+    printf("Enter new author: ");
+    scanf("%s", author);
+    printf("Enter new age limit: ");
+    scanf("%d", &ageLimit);
+    printf("Enter new price per week: ");
+    scanf("%d", &pricePerWeek);
+
+    for (int i = 0; i < bookCount; i++) {
+        if (books[i].B_ID == id) {
+            strcpy(books[i].name, name);
+            strcpy(books[i].author, author);
+            books[i].ageLimit = ageLimit;
+            books[i].pricePerWeek = pricePerWeek;
+            saveBooks();
+            return;
+        }
+    }
+
+    printf("Book not found.\n");
+}
+
+void listCustomersWhoRent() {
+    printf("Customers who rented books:\n");
+    for (int i = 0; i < rentalCount; i++) {
+        for (int j = 0; j < customerCount; j++) {
+            if (customers[j].C_ID == rentals[i].C_ID) {
+                printf("Customer ID: %d, Name: %s, Surname: %s\n", customers[j].C_ID, customers[j].name, customers[j].surname);
+            }
+        }
+    }
+}
+
+void listCustomers() {
+    printf("List of customers:\n");
+    for (int i = 0; i < customerCount; i++) {
+        printf("ID: %d, Name: %s, Surname: %s, Age: %d, Wallet: %d\n", customers[i].C_ID, customers[i].name, customers[i].surname, customers[i].age, customers[i].wallet);
+    }
+}
+
+void listBooks() {
+    printf("List of books:\n");
+    for (int i = 0; i < bookCount; i++) {
+        printf("ID: %d, Name: %s, Author: %s, Age Limit: %d, Price per Week: %d, Rented: %d\n", books[i].B_ID, books[i].name, books[i].author, books[i].ageLimit, books[i].pricePerWeek, books[i].rented);
+    }
+}
+
+int main() {
+    int choice;
+
+    while (1) {
+        printf("\nLibrary Booking System\n");
+        printf("1. Create New Customer\n");
+        printf("2. Deposit Money to the Customer\n");
+        printf("3. Add New Book\n");
+        printf("4. Rent A Book\n");
+        printf("5. Return A Book\n");
+        printf("6. Burn Book\n");
+        printf("7. Update Customer Information\n");
+        printf("8. Update Book Information\n");
+        printf("9. List of Customers Who Rent a Book\n");
+        printf("10. List of Customers\n");
+        printf("11. List of Books\n");
+        printf("12. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                createCustomer();
+                break;
+            case 2:
+                depositMoney();
+                break;
+            case 3:
+                addBook();
+                break;
+            case 4:
+                rentBook();
+                break;
+            case 5:
+                returnBook();
+                break;
+            case 6:
+                burnBook();
+                break;
+            case 7:
+                updateCustomer();
+                break;
+            case 8:
+                updateBook();
+                break;
+            case 9:
+                listCustomersWhoRent();
+                break;
+            case 10:
+                listCustomers();
+                break;
+            case 11:
+                listBooks();
+                break;
+            case 12:
+                exit(0);
+            default:
+                printf("Invalid choice. Please try again.\n");
+        }
+    }
+
+    return 0;
+}
